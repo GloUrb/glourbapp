@@ -11,7 +11,7 @@ mod_GSW_ui <- function(id){
   ns <- NS(id)
 
   selection1=glourbi::all_cities %>%
-    dplyr::filter(selection1==TRUE) %>%
+    dplyr::filter(selection1_GSW==TRUE) %>%
     dplyr::arrange(Urban.Aggl) %>%
     dplyr::pull(Urban.Aggl)
   tagList(

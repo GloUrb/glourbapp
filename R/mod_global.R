@@ -16,8 +16,10 @@ mod_global_ui <- function(id){
                     wellPanel(
                       radioButtons(ns("selection"),
                                    "Show cities in selection",
-                                   c("Selection 0 (993)","Selection 1 (298)"),
-                                   selected="Selection 0 (993)"),
+                                   c("All (993)",
+                                     "Selection 1 -Discourses- (302)",
+                                     "Selection 1 -GSW- (298)"),
+                                   selected="All (993)"),
                       div(id=ns("select_var_help"),
                       selectInput(ns("select_var"),
                                   label="Choose variable to display as color on map and plots",
@@ -100,9 +102,24 @@ mod_global_server <- function(id){
     r_all_cities=reactive({
       input$nclust
       input$selection
-      dataset=glourbi::run_hclust(glourbi::all_cities, nclust=input$nclust)
-      if(input$selection=="Selection 0 (993)"){dataset=dataset}
-      if(input$selection=="Selection 1 (298)"){dataset=dataset %>% dplyr::filter(selection1==TRUE)}
+      dataset=glourbi::run_hclust(glourbi::all_cities, nclust=input$nclust) %>%
+        dplyr::mutate(selection1=selection1_Discourses)
+      c("All (993)",
+        "Selection 1 -Discourses- (302)",
+        "Selection 1 -GSW- (298)")
+      if(input$selection=="Selection 1 -Discourses- (302)"){
+        dataset=dataset %>%
+          dplyr::select(-selection1) %>%
+          dplyr::rename(selection1=selection1_Discourses) %>%
+          dplyr::filter(selection1==TRUE)
+      }
+      if(input$selection=="Selection 1 -GSW- (298)"){
+        dataset=dataset %>%
+          dplyr::select(-selection1) %>%
+          dplyr::rename(selection1=selection1_GSW) %>%
+          dplyr::filter(selection1==TRUE)
+      }
+
       dataset
     })
     r_get_city=reactive({

@@ -38,7 +38,7 @@ mod_WDWP_server <- function(id){
     })
 
     output$map_wd=leaflet::renderLeaflet({
-      mymap=leaflet::leaflet(glourbi::all_cities %>% dplyr::filter(selection1==TRUE)) %>%
+      mymap=leaflet::leaflet(glourbi::all_cities %>% dplyr::filter(selection1_GSW==TRUE)) %>%
         leaflet::addCircleMarkers(color="black") %>%
         leaflet::addCircleMarkers(data=r_wd_data(),
                                   popup=~popup,
