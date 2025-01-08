@@ -15,74 +15,75 @@ mod_discourses_ui <- function(id){
     dplyr::pull(Urban.Aggl)
   tagList(
     div(id=ns("main_menu_help"),
-    tabsetPanel(
-      tabPanel("global",
-               tabsetPanel(
-                 tabPanel("topics map",
-                          HTML("<p>This map displays the <b>most specific topic for each city</b> (whichever river is considered) according to the results of the Search Engine Research Pages.</p>
+        tabsetPanel(
+          tabPanel("global",
+                   tabsetPanel(
+                     tabPanel("topics",
+                              HTML("<p>This map displays the <b>most specific topic for each city</b> (whichever river is considered) according to the results of the Search Engine Research Pages.</p>
                                 <p>The topics are <b>built automatically based on the contents of scraped pages</b>, through the clustering of text segments into classes, which are displayed in tab <b>topics tree</b>."),
-                          leaflet::leafletOutput(ns("topics_map"))),
-                 tabPanel("topics tree",
-                          tags$img(src = "www/clusters_all_14_en.png", height = "700px", width = "1400px")),
-                 tabPanel("localness",
-                          fluidRow(
-                            column(width=3,
-                                   HTML("<p>An <b>index of localness</b> for each scraped page is calculated based on the url's domain and page's language</p>
+                              leaflet::leafletOutput(ns("topics_map")),
+                              tags$img(src = "www/clusters_all_14_en.png", height = "700px", width = "1400px")),
+                     tabPanel("localness",
+                              fluidRow(
+                                column(width=3,
+                                       HTML("<p>An <b>index of localness</b> for each scraped page is calculated based on the url's domain and page's language</p>
                                          <p> The following map shows, for each city, the proportion of web pages assessed as local.</p>"),
-                                   selectInput(ns("localness"),
-                                               "Page localness based on",
-                                               c("URL","language","URL_and_language"))
-                                  ),
-                            column(width=9,
-                                   leaflet::leafletOutput(ns("global_localness_plot")))
-                          )#fluidRow
-                          ),
-                 tabPanel("search word",
-                          fluidRow(
+                                       selectInput(ns("localness"),
+                                                   "Page localness based on",
+                                                   c("URL","language","URL_and_language"))
+                                ),
+                                column(width=9,
+                                       leaflet::leafletOutput(ns("global_localness_plot")))
+                              )#fluidRow
+                     ),
+                     tabPanel("word",
+                              fluidRow(
+                                column(width=3,
+                                       textInput(ns("searched_word"),
+                                                 "Search this word:",
+                                                 value=""),
+                                       p("Consider either roughly equally-sized text segments  or complete web pages."),
+                                       radioButtons(ns("searched_table"),
+                                                    "Consider :",
+                                                    choices=c("txt_segment","txt_page"),
+                                                    selected="txt_segment"),
+                                       actionButton(ns("search_btn"), "Search")
+                                ),
+                                column(width=9,
+                                       leaflet::leafletOutput(ns("word_map"))),
+                                DT::dataTableOutput(ns("searched_lines"))
+                              ) #fluidRow
+                     )
+                   )
+          ),
+          tabPanel("by city",
+                   fluidRow(column(width=3,
+                                   selectInput(ns("city"),
+                                               "Choose city",
+                                               choices=selection1,
+                                               selected=selection1[1])),
                             column(width=3,
-                                   textInput(ns("searched_word"),
-                                    "Search this word:",
-                                    value=""),
-                                   radioButtons(ns("searched_table"),
-                                       "In table:",
-                                       choices=c("txt_segment","txt_page"),
-                                       selected="txt_segment"),
-                                    actionButton(ns("search_btn"), "Search")
-                                   ),
-                            column(width=9,
-                                   DT::dataTableOutput(ns("searched_lines")))
-                            ) #fluidRow
-                          )
-               )
-      ),
-      tabPanel("by city",
-               fluidRow(column(width=3,
-                               selectInput(ns("city"),
-                                           "Choose city",
-                                           choices=selection1,
-                                           selected=selection1[1])),
-                        column(width=3,
-                               uiOutput(ns("ui_river")))
-               ),#fluidRow
-               tabsetPanel(
-                 tabPanel("pages table",
-                          DT::dataTableOutput(ns("txt_page"))),
-                 tabPanel("segments table",
-                          DT::dataTableOutput(ns("txt_segment"))),
-                 tabPanel("words",
-                          plotOutput(ns("city_words_freq"))),
-                 tabPanel("topics",
-                          fluidRow(
-                            column(width=6,
-                                   plotOutput(ns("city_topics_n"))),
-                            column(width=6,
-                                   plotOutput(ns("city_topics_spec")))
-                          )),
-                 tabPanel("localness",
-                          plotOutput(ns("city_localness_plot")))
-               )
-      )
-    )#tabsetPanel
+                                   uiOutput(ns("ui_river")))
+                   ),#fluidRow
+                   tabsetPanel(
+                     tabPanel("pages table",
+                              DT::dataTableOutput(ns("txt_page"))),
+                     tabPanel("segments table",
+                              DT::dataTableOutput(ns("txt_segment"))),
+                     tabPanel("words",
+                              plotOutput(ns("city_words_freq"))),
+                     tabPanel("topics",
+                              fluidRow(
+                                column(width=6,
+                                       plotOutput(ns("city_topics_n"))),
+                                column(width=6,
+                                       plotOutput(ns("city_topics_spec")))
+                              )),
+                     tabPanel("localness",
+                              plotOutput(ns("city_localness_plot")))
+                   )
+          )
+        )#tabsetPanel
     )#div
   )
 }
@@ -110,16 +111,19 @@ mod_discourses_server <- function(id,conn){
                                            thisRiver=input$river,
                                            conn=conn)
     })
-    observeEvent(input$search_btn, {
-      output$searched_lines=renderDataTable({
-        var=switch(input$searched_table,
-                   txt_page="text_en",
-                   txt_segment="text")
-        query=glue::glue("SELECT * FROM {input$searched_table} WHERE {var} ILIKE '%{input$searched_word}%';")
-        result=DBI::dbGetQuery(conn=conn,
-                               query) %>%
-          format_table()
-      })
+
+    r_get_searched_lines <- eventReactive(input$search_btn, {
+      var=switch(input$searched_table,
+                 txt_page="text_en",
+                 txt_segment="text")
+      query=glue::glue("SELECT * FROM {input$searched_table} WHERE {var} ILIKE '%{input$searched_word}%';")
+      result=DBI::dbGetQuery(conn=conn,
+                             query)
+    })
+    output$searched_lines=renderDataTable({
+      searched_lines=r_get_searched_lines()
+      searched_lines%>%
+        format_table()
     })
 
 
@@ -327,5 +331,28 @@ mod_discourses_server <- function(id,conn){
         ggplot2::theme_bw() +
         ggplot2::theme(legend.position = "none")
     })
+
+    output$word_map=leaflet::renderLeaflet({
+      searched_lines=r_get_searched_lines()
+      result=all_cities %>%
+        dplyr::filter(selection1_Discourses==TRUE) %>%
+        dplyr::select(ID,Urban.Aggl,Latitude,Longitude) %>%
+        dplyr::left_join(searched_lines, by=c("ID"="citycode")) %>%
+        dplyr::group_by(Urban.Aggl,Latitude,Longitude) %>%
+        dplyr::summarise(n=dplyr::n(),
+                         nvoid=length(which(is.na(link))),
+                         .groups="drop") %>%
+        dplyr::mutate(n=n-nvoid) %>%
+        dplyr::mutate(logn=3*log10(n+1))
+      leaflet::leaflet() %>%
+        leaflet::addProviderTiles("CartoDB.Positron") %>%
+        leaflet::addCircleMarkers(data = result,
+                                  label = paste0(result$Urban.Aggl,", ", result$n),
+                                  color = "red",
+                                  opacity = 0.8,
+                                  radius =~3*logn)
+    })
+
+
   }
   )}

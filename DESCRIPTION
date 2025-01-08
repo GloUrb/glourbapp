@@ -1,7 +1,7 @@
 Package: glourbapp
 Title: An app for the GloUrb project
 Version: 0.0.0.9000
-Authors@R: person("Lise", "Vaudor", , "lise.vaudor@ens-lyon.fr", role = c("aut", "cre"),
+Authors@R: c(person("Lise", "Vaudor", email="lise.vaudor@ens-lyon.fr", role = c("aut", "cre"),
                   comment = c(ORCID = "0000-0003-1844-6425")),
            person("Samuel", "Dunesme", role = "aut",
                   comment = c(ORCID = " 0000-0001-6304-5546")),
@@ -9,7 +9,8 @@ Authors@R: person("Lise", "Vaudor", , "lise.vaudor@ens-lyon.fr", role = c("aut",
                   comment=c(ORCID= "0000-0002-6247-7619")),
            person("Liolia","Bajemon",role="aut",
                   comment=c(ORCID="0009-0003-4131-8752")),
-           person("Fanny","Bourgeau",role="aut")
+           person("Fanny","Bourgeau",role="aut"))
+Maintainer: Lise Vaudor <lise.vaudor@ens-lyon.fr>
 Description: PKG_DESC.
 License: GNU Affero General Public License v3.0
 Imports: 
