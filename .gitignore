@@ -9,3 +9,4 @@ app_cache/
 .Rhistory
 .Renviron
 .Renviron.prod
+docker-compose.yml

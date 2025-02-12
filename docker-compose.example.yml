@@ -1,0 +1,12 @@
+services:
+  app:
+    image: ghcr.io/glourb/glourbapp
+    build: .
+    ports:
+      - "3838:3838"
+    environment:
+      - GLOURB_HOST=
+      - GLOURB_PORT=
+      - GLOURB_NAME=
+      - GLOURB_USER_APP=
+      - GLOURB_PASS_APP=
