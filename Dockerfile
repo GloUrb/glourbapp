@@ -1,7 +1,7 @@
 FROM rocker/r2u:jammy
 
 LABEL org.opencontainers.image.authors="Lise Vaudor <lise.vaudor@ens-lyon.fr>, Samuel Dunesme <samuel.dunesme@ens-lyon.fr>"
-LABEL org.opencontainers.image.url="https://github.com/glourb/glourbapp"
+LABEL org.opencontainers.image.source="https://github.com/glourb/glourbapp"
 LABEL org.opencontainers.image.documentation="https://evs-gis.github.io/glourbdoc/"
 LABEL org.opencontainers.image.version="0.0.0.9000"
 LABEL org.opencontainers.image.description="An app for the GloUrb project"
