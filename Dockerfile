@@ -35,8 +35,10 @@ RUN Rscript -e 'install.packages("cicerone")'
 RUN Rscript -e 'install.packages("RPostgres")'
 RUN Rscript -e 'install.packages("DBI")'
 RUN Rscript -e 'install.packages("DT")'
+RUN Rscript -e 'install.packages("bslib")'
 
 RUN Rscript -e 'remotes::install_github("glourb/glourbi")'
+RUN Rscript -e 'remotes::install_github("glourb/gsw")'
 
 RUN mkdir /app
 ADD . /app
