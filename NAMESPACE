@@ -3,6 +3,7 @@
 export("%>%")
 export(add_to_map)
 export(format_table)
+export(process_query)
 export(run_app)
 import(shiny)
 importFrom(cicerone,Cicerone)

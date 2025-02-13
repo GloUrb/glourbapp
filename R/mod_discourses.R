@@ -14,15 +14,23 @@ mod_discourses_ui <- function(id){
     dplyr::arrange(Urban.Aggl) %>%
     dplyr::pull(Urban.Aggl)
   tagList(
-    div(id=ns("main_menu_help"),
         tabsetPanel(
+          id=ns("sub_menu_tab"),
           tabPanel("global",
-                   tabsetPanel(
+                   tabsetPanel(id=ns("global_menu_tab"),
                      tabPanel("topics",
-                              HTML("<p>This map displays the <b>most specific topic for each city</b> (whichever river is considered) according to the results of the Search Engine Research Pages.</p>
-                                <p>The topics are <b>built automatically based on the contents of scraped pages</b>, through the clustering of text segments into classes, which are displayed in tab <b>topics tree</b>."),
-                              leaflet::leafletOutput(ns("topics_map")),
-                              tags$img(src = "www/clusters_all_14_en.png", height = "700px", width = "1400px")),
+                              fluidRow(
+                                column(width=3,
+                                       HTML("<p>This map displays the <b>most specific topic for each city</b>
+                                            (whichever river is considered)
+                                            according to the results of the Search Engine Research Pages.</p>
+                                            <p>The topics are <b>built automatically based on the contents of scraped pages</b>,
+                                            through the clustering of text segments into classes,
+                                            which are displayed in tab <b>topics tree</b>.")),
+                                column(width=9,
+                                       leaflet::leafletOutput(ns("topics_map")))),
+                              div(id=ns("clusters"),
+                              tags$img(src = "www/clusters_all_14_en.png", height = "700px", width = "1400px"))),
                      tabPanel("localness",
                               fluidRow(
                                 column(width=3,
@@ -36,7 +44,7 @@ mod_discourses_ui <- function(id){
                                        leaflet::leafletOutput(ns("global_localness_plot")))
                               )#fluidRow
                      ),
-                     tabPanel("word",
+                     tabPanel("word search",
                               fluidRow(
                                 column(width=3,
                                        textInput(ns("searched_word"),
@@ -47,25 +55,31 @@ mod_discourses_ui <- function(id){
                                                     "Consider :",
                                                     choices=c("txt_segment","txt_page"),
                                                     selected="txt_segment"),
-                                       actionButton(ns("search_btn"), "Search")
+                                       actionButton(ns("search_btn"), "Search"),
+                                       HTML("<p>NB: in table txt_segment the words have been lemmatized: search for e.g. 'mine' rather than 'mining' or 'tree' rather than 'trees'.</p>
+                                            <p> Examples of search: <ul><li>in txt_segment: 'gravel mine'</li><li> in txt_segment: 'global warm OR climate change'</li>
+                                            <li>in txt_page: 'water scarcity OR global warming'</li>")
                                 ),
                                 column(width=9,
                                        leaflet::leafletOutput(ns("word_map"))),
+                                downloadButton(ns("download_btn"), "Download this data"),
                                 DT::dataTableOutput(ns("searched_lines"))
                               ) #fluidRow
                      )
                    )
           ),
           tabPanel("by city",
+                   div(id=ns("city_river"),
                    fluidRow(column(width=3,
                                    selectInput(ns("city"),
                                                "Choose city",
                                                choices=selection1,
-                                               selected=selection1[1])),
+                                               selected=selection1[2])
+                                   ),
                             column(width=3,
                                    uiOutput(ns("ui_river")))
-                   ),#fluidRow
-                   tabsetPanel(
+                   )),#fluidRow #div
+                   tabsetPanel(id=ns("by_river_menu"),
                      tabPanel("pages table",
                               DT::dataTableOutput(ns("txt_page"))),
                      tabPanel("segments table",
@@ -82,16 +96,15 @@ mod_discourses_ui <- function(id){
                      tabPanel("localness",
                               plotOutput(ns("city_localness_plot")))
                    )
-          )
+          )# by city tabPanel
         )#tabsetPanel
-    )#div
   )
 }
 
 #' mod_discourses Server Functions
 #'
 #' @noRd
-mod_discourses_server <- function(id,conn){
+mod_discourses_server <- function(id,conn, r_val){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
@@ -116,9 +129,11 @@ mod_discourses_server <- function(id,conn){
       var=switch(input$searched_table,
                  txt_page="text_en",
                  txt_segment="text")
-      query=glue::glue("SELECT * FROM {input$searched_table} WHERE {var} ILIKE '%{input$searched_word}%';")
+      query_condition <- process_query(input$searched_word, var)
+      query <- glue::glue("SELECT * FROM {input$searched_table} WHERE {query_condition};")
       result=DBI::dbGetQuery(conn=conn,
                              query)
+      result
     })
     output$searched_lines=renderDataTable({
       searched_lines=r_get_searched_lines()
@@ -128,7 +143,6 @@ mod_discourses_server <- function(id,conn){
 
 
     output$ui_river=renderUI({
-      print("in ui_river")
       rivers=r_get_txt_city_rivers() %>%
         dplyr::pull(river_en) %>%
         unique()
@@ -236,8 +250,7 @@ mod_discourses_server <- function(id,conn){
         ggplot2::scale_fill_manual(values = c("#abdda4","#abdda4","#abdda4","#41b6c4")) +
         ggplot2::labs(title = paste0("Web pages about ", input$city, " et ", input$river,"."),
                       x = "",
-                      y = "%",
-        ) +
+                      y = "%") +
         ggplot2::scale_y_continuous(limits = c(0,100)) +
         ggplot2::theme_bw(base_family = "CenturySch", base_size = 14) +
         ggplot2::theme(legend.title = ggplot2::element_blank(), legend.position = "bottom")
@@ -334,25 +347,42 @@ mod_discourses_server <- function(id,conn){
 
     output$word_map=leaflet::renderLeaflet({
       searched_lines=r_get_searched_lines()
+      print(colnames(searched_lines))
       result=all_cities %>%
         dplyr::filter(selection1_Discourses==TRUE) %>%
-        dplyr::select(ID,Urban.Aggl,Latitude,Longitude) %>%
+        dplyr::select(ID,Urban.Aggl,Latitude,Longitude,selection1_Discourses) %>%
         dplyr::left_join(searched_lines, by=c("ID"="citycode")) %>%
-        dplyr::group_by(Urban.Aggl,Latitude,Longitude) %>%
-        dplyr::summarise(n=dplyr::n(),
-                         nvoid=length(which(is.na(link))),
+        dplyr::group_by(Urban.Aggl,Latitude,Longitude,selection1_Discourses) %>%
+        dplyr::summarise(nocc=dplyr::n(),
+                         void=all(is.na(link)),
                          .groups="drop") %>%
-        dplyr::mutate(n=n-nvoid) %>%
-        dplyr::mutate(logn=3*log10(n+1))
+        dplyr::mutate(nocc=dplyr::case_when(void~0,
+                                     !void~nocc)) %>%
+        dplyr::mutate(void=dplyr::case_when(void~"grey",
+                                            TRUE~"coral")) %>%
+        dplyr::mutate(logn=3*log10(nocc))
       leaflet::leaflet() %>%
         leaflet::addProviderTiles("CartoDB.Positron") %>%
         leaflet::addCircleMarkers(data = result,
-                                  label = paste0(result$Urban.Aggl,", ", result$n),
-                                  color = "red",
+                                  label = paste0(result$Urban.Aggl,", ", result$nocc),
+                                  color = ~void,
                                   opacity = 0.8,
                                   radius =~3*logn)
     })
 
+    output$download_btn <- downloadHandler(
+      filename = function() {
+        searched_word=stringr::str_replace_all(input$searched_word," OR ","_OR_")
+        glue::glue("corpus_{searched_word}.csv")
+      },
+      content = function(file) {
+        write.csv(r_get_searched_lines(), file)
+      }
+    )
 
+    observeEvent(input$sub_menu_tab, {
+      r_val$sub_menu_tab = input$sub_menu_tab
+    })
   }
+
   )}

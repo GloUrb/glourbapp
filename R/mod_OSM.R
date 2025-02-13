@@ -71,7 +71,6 @@ mod_OSM_server <- function(id, conn){
                                    wikidata_id,
                                    "' target='_blank'>Wikidata item</a> ")) %>%
         sf::st_centroid()
-      print(result)
       result
     })
 
@@ -133,7 +132,7 @@ mod_OSM_server <- function(id, conn){
         leaflet::hideGroup("GWS") %>%
         leaflet::hideGroup("ESRI Photo") %>%
         leaflet::hideGroup("ESRI Map")
-        print(mymap)
+        mymap
     })
 
     observeEvent(c(input$group,input$city),{
