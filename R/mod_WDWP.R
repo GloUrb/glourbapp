@@ -32,7 +32,6 @@ mod_WDWP_server <- function(id){
     ns <- session$ns
 
     r_wd_data=reactive({
-      print(input$wd_type)
       glourbapp::wd_all_map %>%
         dplyr::filter(type %in% input$wd_type)
     })
@@ -57,7 +56,7 @@ mod_WDWP_server <- function(id){
           options = leaflet::layersControlOptions(collapsed = FALSE)) %>%
         leaflet::hideGroup("ESRI Photo") %>%
         leaflet::hideGroup("ESRI Street Map")
-      print(mymap)
+      mymap
     })
 
 

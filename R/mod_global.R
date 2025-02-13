@@ -102,14 +102,9 @@ mod_global_server <- function(id){
     r_all_cities=reactive({
       input$nclust
       input$selection
-      dataset=glourbi::run_hclust(glourbi::all_cities, nclust=input$nclust) %>%
-        dplyr::mutate(selection1=selection1_Discourses)
-      c("All (993)",
-        "Selection 1 -Discourses- (302)",
-        "Selection 1 -GSW- (298)")
+      dataset=glourbi::run_hclust(glourbi::all_cities, nclust=input$nclust)
       if(input$selection=="Selection 1 -Discourses- (302)"){
         dataset=dataset %>%
-          dplyr::rename(selection1=selection1_Discourses) %>%
           dplyr::filter(selection1_Discourses==TRUE)
       }
       if(input$selection=="Selection 1 -GSW- (298)"){
@@ -149,13 +144,14 @@ mod_global_server <- function(id){
     output$indpcaplot=plotly::renderPlotly({
       highlight_subset=r_all_cities() %>%
         dplyr::filter(name==r_get_city())
-      glourbi::plot_pca(dataset=r_all_cities(),
+      glourbi::plot_pca(dataset=r_all_cities() %>%
+                          dplyr::mutate(selection1=selection1_GSW),
                         r_calc_pca(),
                         type="ind",
                         highlight_subset=highlight_subset)
     })
     output$global_map=leaflet::renderLeaflet({
-      glourbi::global_map(dataset=r_all_cities(),
+      glourbi::global_map(dataset=r_all_cities() %>% dplyr::mutate(selection1=selection1_GSW),
                           varname=input$select_var)
     })
     output$plot_palette=renderPlot({

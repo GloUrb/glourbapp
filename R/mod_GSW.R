@@ -15,7 +15,7 @@ mod_GSW_ui <- function(id){
     dplyr::arrange(Urban.Aggl) %>%
     dplyr::pull(Urban.Aggl)
   tagList(
-    div(id="city_help",
+    div(id=ns("city_help"),
     selectInput(ns("city"),
                 "Choose city",
                 choices=selection1,
@@ -83,9 +83,7 @@ mod_GSW_server <- function(id,conn){
     })
 
     output$GSWdensity=renderPlot({
-      conn=glourbi::connect_to_sandbox()
       gsw_result=gsw::gsw_summary(input$city,conn)
-      DBI::dbDisconnect(conn)
       gsw::gsw_summary_plot(gsw_result)
     })
     output$GSWtable=DT::renderDT({
@@ -150,8 +148,7 @@ mod_GSW_server <- function(id,conn){
           options = leaflet::layersControlOptions(collapsed = FALSE)) %>%
         leaflet::hideGroup("Photo") %>%
         leaflet::hideGroup("water patches size")
-
-      print(mymap)
+      mymap
     })
 
   })

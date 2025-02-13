@@ -48,7 +48,7 @@ app_ui <- function(request) {
           tabPanel("OpenStreetMap",icon=icon("map"),mod_OSM_ui("mod_OSM_1")),
           tabPanel("Doc",icon=icon("circle-info"),
                    HTML(paste0("<p> To consult the documentation associated to this app",
-                               "please check <a href='https://lvaudor.github.io/glourbdoc/' ",
+                               "please check <a href='https://glourb.github.io/glourbdoc/' ",
                                "target='_blank'>",
                                "this site</a>."))),
           theme = bslib::bs_theme(version = 5, bootswatch = "united",
