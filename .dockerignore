@@ -2,6 +2,11 @@
 .Rhistory
 .git
 .gitignore
+.github
 manifest.json
 rsconnect/
 .Rproj.user
+docker-compose.yml
+docker-compose.example.yml
+.env
+.Renviron

@@ -56,8 +56,8 @@ app_ui <- function(request) {
           #secondary="#009CDE"
           #primary = "#000000",
           secondary="#909090"
-
-          )
+          ),
+          navbar_options = list(class = "bg-primary", theme = "dark")
         )#navbarPage
 )
 }

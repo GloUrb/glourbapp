@@ -1,0 +1,18 @@
+# Docker-compose file for local development only! 
+
+services:
+  app:
+    image: ghcr.io/glourb/glourbapp
+    build: .
+    ports:
+      - "3838:3838"
+    volumes:
+      - .:/app
+    user: root
+    command: bash -c "Rscript -e 'install.packages(\"devtools\")' && Rscript -e 'devtools::load_all()' && R -f app.R"
+    environment:
+      - GLOURB_HOST=
+      - GLOURB_PORT=
+      - GLOURB_NAME=
+      - GLOURB_USER_APP=
+      - GLOURB_PASS_APP=
