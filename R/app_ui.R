@@ -35,13 +35,13 @@ app_ui <- function(request) {
           mod_help_ui("mod_help_1") # Use the cicerone UI module here
       ),
       navbarPage(
-          id="main_menu_tab",
           title=
             img(
               src = "www/GloUrb_wide.png",
               height = 35,
               width = 100
             ),
+          id="main_menu_tab",
           tabPanel("Global",icon = icon("globe"),mod_global_ui("mod_global_1")),
           tabPanel("Surface Water",icon = icon("droplet"),mod_GSW_ui("mod_GSW_1")),
           tabPanel("Discourses",icon=icon("comment"),mod_discourses_ui("mod_discourses_1")),
@@ -56,8 +56,7 @@ app_ui <- function(request) {
           #secondary="#009CDE"
           #primary = "#000000",
           secondary="#909090"
-          ),
-          navbar_options = list(class = "bg-primary", theme = "dark")
+          )
         )#navbarPage
 )
 }
