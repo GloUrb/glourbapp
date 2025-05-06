@@ -16,58 +16,25 @@ mod_discourses_ui <- function(id){
   tagList(
         tabsetPanel(
           id=ns("sub_menu_tab"),
-          tabPanel("global",
-                   tabsetPanel(id=ns("global_menu_tab"),
-                     tabPanel("topics",
-                              fluidRow(
-                                column(width=3,
-                                       HTML("<p>This map displays the <b>most specific topic for each city</b>
-                                            (whichever river is considered)
-                                            according to the results of the Search Engine Research Pages.</p>
-                                            <p>The topics are <b>built automatically based on the contents of scraped pages</b>,
-                                            through the clustering of text segments into classes,
-                                            which are displayed in tab <b>topics tree</b>.")),
-                                column(width=9,
-                                       leaflet::leafletOutput(ns("topics_map")))),
-                              div(id=ns("clusters"),
-                              tags$img(src = "www/clusters_all_14_en.png", height = "700px", width = "1400px"))),
-                     tabPanel("localness",
-                              fluidRow(
-                                column(width=3,
-                                       HTML("<p>An <b>index of localness</b> for each scraped page is calculated based on the url's domain and page's language</p>
-                                         <p> The following map shows, for each city, the proportion of web pages assessed as local.</p>"),
-                                       selectInput(ns("localness"),
-                                                   "Page localness based on",
-                                                   c("URL","language","URL_and_language"))
-                                ),
-                                column(width=9,
-                                       leaflet::leafletOutput(ns("global_localness_plot")))
-                              )#fluidRow
-                     ),
-                     tabPanel("word search",
-                              fluidRow(
-                                column(width=3,
-                                       textInput(ns("searched_word"),
-                                                 "Search this word:",
-                                                 value=""),
-                                       p("Consider either roughly equally-sized text segments  or complete web pages."),
-                                       radioButtons(ns("searched_table"),
-                                                    "Consider :",
-                                                    choices=c("txt_segment","txt_page"),
-                                                    selected="txt_segment"),
-                                       actionButton(ns("search_btn"), "Search"),
-                                       HTML("<p>NB: in table txt_segment the words have been lemmatized: search for e.g. 'mine' rather than 'mining' or 'tree' rather than 'trees'.</p>
-                                            <p> Examples of search: <ul><li>in txt_segment: 'gravel mine'</li><li> in txt_segment: 'global warm OR climate change'</li>
-                                            <li>in txt_page: 'water scarcity OR global warming'</li>")
-                                ),
-                                column(width=9,
-                                       leaflet::leafletOutput(ns("word_map"))),
-                                downloadButton(ns("download_btn"), "Download this data"),
-                                DT::dataTableOutput(ns("searched_lines"))
-                              ) #fluidRow
-                     )
-                   )
-          ),
+         tabPanel("global word search",
+                  fluidRow(
+                    column(width=3,
+                           textInput(ns("searched_word"),
+                                     "Search this word:",
+                                     value="drought"),
+                           p("Consider either roughly equally-sized text segments  or complete web pages."),
+                           radioButtons(ns("searched_column"),
+                                        "Consider :",
+                                        choices=c("text_en","lemmatext"),
+                                        selected="text_en"),
+                           actionButton(ns("search_btn"), "Search")
+                    ),
+                    column(width=9,
+                           leaflet::leafletOutput(ns("word_map"))),
+                    downloadButton(ns("download_btn"), "Download this data"),
+                    DT::dataTableOutput(ns("searched_lines"))
+                  ) #fluidRow
+          ),# tabPanel word search
           tabPanel("by city",
                    div(id=ns("city_river"),
                    fluidRow(column(width=3,
@@ -77,26 +44,26 @@ mod_discourses_ui <- function(id){
                                                selected=selection1[2])
                                    ),
                             column(width=3,
-                                   uiOutput(ns("ui_river")))
+                                   uiOutput(ns("ui_river"))),
+                            column(width=3,
+                                   uiOutput(ns("ui_query_language")))
                    )),#fluidRow #div
                    tabsetPanel(id=ns("by_river_menu"),
                      tabPanel("pages table",
                               DT::dataTableOutput(ns("txt_page"))),
-                     tabPanel("segments table",
-                              DT::dataTableOutput(ns("txt_segment"))),
-                     tabPanel("words",
-                              plotOutput(ns("city_words_freq"))),
-                     tabPanel("topics",
+                     tabPanel("words & topics",
                               fluidRow(
                                 column(width=6,
-                                       plotOutput(ns("city_topics_n"))),
+                                       plotOutput(ns("city_words_freq"))
+                                       ),
                                 column(width=6,
+                                       plotOutput(ns("city_topics_n")),
                                        plotOutput(ns("city_topics_spec")))
-                              )),
-                     tabPanel("localness",
-                              plotOutput(ns("city_localness_plot")))
+                              ))
                    )
-          )# by city tabPanel
+          ),# by city tabPanel,
+         tabPanel("method",
+                  tags$img(src="www/methode_appli.png", width = "1200px"))
         )#tabsetPanel
   )
 }
@@ -108,8 +75,8 @@ mod_discourses_server <- function(id,conn, r_val){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
-    r_get_txt_city_rivers=reactive({
-      glourbi::get_city_tib(name="txt_city_rivers",
+    r_get_txt_city_river_language=reactive({
+      glourbi::get_city_tib(name="txt_city_river_language",
                             thisCityCode=glourbi::to_citycode(input$city),
                             conn=conn)
     })
@@ -117,41 +84,60 @@ mod_discourses_server <- function(id,conn, r_val){
       tib_page=glourbi::get_txt_page(thisCityCode=glourbi::to_citycode(input$city),
                                      thisRiver=input$river,
                                      conn=conn)
-
+      if(input$query_language!="all"){
+        if(input$query_language=="english"){
+            query_language="en"
+          }else{
+            query_language=stringr::str_replace(input$query_language,"local: ","")
+          }
+        tib_page=tib_page %>%
+          dplyr::filter(hl==query_language)
+      }
+      tib_page
     })
     r_get_txt_segment=reactive({
       tib_segment=glourbi::get_txt_segment(thisCityCode=glourbi::to_citycode(input$city),
                                            thisRiver=input$river,
                                            conn=conn)
     })
-
-    r_get_searched_lines <- eventReactive(input$search_btn, {
-      var=switch(input$searched_table,
-                 txt_page="text_en",
-                 txt_segment="text")
-      query_condition <- process_query(input$searched_word, var)
-      query <- glue::glue("SELECT * FROM {input$searched_table} WHERE {query_condition};")
+    r_result <- reactiveVal({
+      # Requête par défaut
+      query_condition <- process_query("climate change","text_en")
+      query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
+      DBI::dbGetQuery(conn = conn, query)
+    })
+    observeEvent(input$search_btn, {
+      query_condition <- process_query(input$searched_word, input$searched_column)
+      query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
       result=DBI::dbGetQuery(conn=conn,
                              query)
-      result
+      r_result(result)
     })
-    output$searched_lines=renderDataTable({
-      searched_lines=r_get_searched_lines()
-      searched_lines%>%
+    output$searched_lines=DT::renderDT({
+      searched_lines=r_result()
+      searched_lines %>%
+        dplyr::select(urban_aggl,country_en,position,link,trans_snippet,text_en,lemmatext) %>%
         format_table()
     })
-
-
     output$ui_river=renderUI({
-      rivers=r_get_txt_city_rivers() %>%
+      rivers=r_get_txt_city_river_language() %>%
         dplyr::pull(river_en) %>%
         unique()
       selectInput(ns("river"),"river",choices=rivers, selected=rivers[1])
     })
+    output$ui_query_language=renderUI({
+      query_languages=r_get_txt_city_river_language() %>%
+        dplyr::pull(query_language) %>%
+        unique()
+      selectInput(ns("query_language"),
+                  "query language",
+                  choices=c("all",query_languages),
+                  selected=query_languages[2])
+    })
     output$city_words_freq=renderPlot({
-      tib_segment=r_get_txt_segment()
-      tib_word = tib_segment %>%
-        tidytext::unnest_tokens(input=text,output=word)
+      tib_page=r_get_txt_page()
+      tib_word=tib_page %>%
+        tidytext::unnest_tokens(input=lemmatext,output=word)
       result_word=tib_word %>%
         # count the nb of occurrences of each word
         dplyr::group_by(word) %>%
@@ -159,8 +145,6 @@ mod_discourses_server <- function(id,conn, r_val){
         # arrange by decreasing order
         dplyr::arrange(desc(n)) %>%
         dplyr::ungroup()
-
-
       result_word[1:30,] %>% # show first 30 words
         dplyr::mutate(word = forcats::fct_reorder(word, n)) %>%
         ggplot2::ggplot(mapping = ggplot2::aes(x = word,
@@ -175,127 +159,10 @@ mod_discourses_server <- function(id,conn, r_val){
     })
     output$txt_page=DT::renderDT({
       result=r_get_txt_page() %>%
+        dplyr::select(hl,position, link, trans_snippet,text_en,lemmatext) %>%
+        arrange(hl, position) %>%
         format_table()
     },escape=FALSE)
-
-    output$txt_segment=DT::renderDT({
-      result=r_get_txt_segment() %>%
-        format_table()
-    },escape=FALSE)
-
-    output$global_localness_plot=leaflet::renderLeaflet({
-      tib_txt_localness=DBI::dbReadTable(name="txt_localness",
-                                         conn=conn) %>%
-        tibble::as_tibble()
-      tib_txt_localness=tib_txt_localness %>%
-        dplyr::filter(localness==input$localness) %>%
-        dplyr::mutate(perc_local=round(perc_local,1)) %>%
-        dplyr::group_by(citycode,river_en) %>%
-        dplyr::summarise(urban_aggl=paste(urban_aggl,collapse="-"),
-                         perc_all=paste(perc_local,collapse=" and "),
-                         perc_local=round(mean(perc_local),2),
-                         latitude=mean(latitude),
-                         longitude=mean(longitude),
-                         .groups="drop")
-      sf_localness <- sf::st_as_sf(tib_txt_localness, coords = c("longitude", "latitude"), crs = 4326)
-      # Créer une palette de couleurs
-      pal <- leaflet::colorNumeric(
-        palette = grDevices::colorRampPalette(c("red", "yellow", "blue"))(100),
-        domain = tib_txt_localness$perc_local
-      )
-
-      #Carte Leaflet
-      leaflet::leaflet() %>%
-        leaflet::addProviderTiles("CartoDB.Positron") %>%
-        # Ajouter les polygones du monde
-        # Ajouter les points des villes avec la palette de couleurs
-        leaflet::addCircleMarkers(data = sf_localness,
-                                  radius = 5,
-                                  color = ~pal(perc_local),
-                                  fillOpacity = 0.8,
-                                  popup = ~glue::glue("<p>City: {urban_aggl}</p>
-                                            <p>River: {river_en}</p>
-                                            <p>Proportion of local pages: {perc_local}%</p>")) %>%
-        # Ajouter une légende pour la couleur
-        leaflet::addLegend(pal = pal,
-                           values = tib_txt_localness$perc_local,
-                           title = "Pourcentage de pages web locales",
-                           position = "bottomright")
-
-
-    })
-
-    output$city_localness_plot=renderPlot({
-      tib_cityriver_localness=glourbi::get_city_tib(name="txt_localness",
-                                                    thisCityCode=glourbi::to_citycode(input$city),
-                                                    conn=conn) %>%
-        dplyr::filter(river_en==input$river) %>%
-        dplyr::select(localness,n=n_local,n_tot) %>%
-        dplyr::mutate(left=n_tot-max(n))
-      tib_cityriver_localness=
-        dplyr::bind_rows(tib_cityriver_localness,
-                         tibble::tibble(localness="none",
-                                        n=unique(tib_cityriver_localness$left))) %>%
-        dplyr::select(localness,n) %>%
-        dplyr::mutate(ntot=sum(n)) %>%
-        dplyr::mutate(perc=100*n/ntot) %>%
-        dplyr::mutate(localness=factor(localness,levels=c("URL_and_language","language","URL","none")))
-
-
-      tib_cityriver_localness %>%
-        ggplot2::ggplot(mapping = ggplot2::aes(x = localness,
-                                               y = perc,
-                                               fill = localness)) +
-        ggplot2::geom_col() +
-        ggplot2::scale_fill_manual(values = c("#abdda4","#abdda4","#abdda4","#41b6c4")) +
-        ggplot2::labs(title = paste0("Web pages about ", input$city, " et ", input$river,"."),
-                      x = "",
-                      y = "%") +
-        ggplot2::scale_y_continuous(limits = c(0,100)) +
-        ggplot2::theme_bw(base_family = "CenturySch", base_size = 14) +
-        ggplot2::theme(legend.title = ggplot2::element_blank(), legend.position = "bottom")
-    })
-
-    output$topics_map=leaflet::renderLeaflet({
-
-      txt_topics=DBI::dbReadTable(conn=conn,name="txt_topics") %>%
-        tibble::as_tibble()
-      txt_topics=txt_topics %>%
-        dplyr::mutate(spec=dplyr::case_when(spec==Inf~1000,
-                                            TRUE~spec))
-      txt_topics_summary=txt_topics %>%
-        dplyr::arrange(citycode,desc(spec),desc(n)) %>%
-        dplyr::group_by(citycode) %>%
-        dplyr::slice(1) %>%
-        dplyr::select(citycode,cluster_name,river_en,spec,n,couleur,prop,npages) %>%
-        dplyr::left_join(glourbi::all_cities %>% dplyr::select(Urban.Aggl,citycode=ID,Latitude,Longitude),by="citycode") %>%
-        na.omit() %>%
-        sf::st_as_sf(coords=c("Longitude","Latitude"))
-      #Carte Leaflet
-      colors_and_labels=txt_topics_summary %>%
-        dplyr::select(cluster_name,couleur) %>%
-        sf::st_drop_geometry() %>% unique()
-      leaflet::leaflet() %>%
-        leaflet::addProviderTiles("CartoDB.Positron") %>%
-        # Ajouter les polygones du monde
-        # Ajouter les points des villes avec la palette de couleurs
-        leaflet::addCircleMarkers(data = txt_topics_summary,
-                                  radius = 5,
-                                  color = ~ couleur,
-                                  fillOpacity = 0.8,
-                                  popup = ~glue::glue("<p>City: {Urban.Aggl}</p>
-                                            <p>River: {river_en}</p>
-                                            <p>Topic: {cluster_name}</p>
-                                            <p>Specificity score: {spec}</p>"))  %>%
-        # Ajouter une légende pour la couleur
-        leaflet::addLegend(values = txt_topics_summary,
-                           colors=colors_and_labels$couleur,
-                           labels=colors_and_labels$cluster_name,
-                           title = "Topics",
-                           position = "bottomright")
-
-
-    })
 
     output$city_topics_n=renderPlot({
       df=glourbi::get_city_tib("txt_topics",
@@ -305,14 +172,14 @@ mod_discourses_server <- function(id,conn, r_val){
         dplyr::mutate(prop=dplyr::case_when(is.na(prop)~0,
                                             !is.na(prop)~prop))
       # plot results
-      df_colors=df %>% dplyr::select(couleur,cluster_name) %>% unique()
+      df_colors=df %>% dplyr::select(couleur,topic_name) %>% unique()
       df %>%
-        ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(cluster_name, prop),
+        ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(topic_name, prop),
                                      y = prop,
-                                     fill = cluster_name)) +
+                                     fill = topic_name)) +
         ggplot2::geom_bar(stat = "identity",
                           position = ggplot2::position_dodge(width = 0.9), width = 0.8) +
-        ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$cluster_name)) +
+        ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$topic_name)) +
         ggplot2::labs(title = paste0("Topics distribution for ", input$city, " and the ", input$river),
                       subtitle = paste0("Number of segments: ", sum(df$n,na.rm=TRUE),", number of pages: ", unique(df$npages)),
                       y = "%",
@@ -328,14 +195,14 @@ mod_discourses_server <- function(id,conn, r_val){
                                thisCityCode=glourbi::to_citycode(input$city),
                                conn=conn)
       # plot results
-      df_colors=df %>% dplyr::select(couleur,cluster_name) %>% unique()
+      df_colors=df %>% dplyr::select(couleur,topic_name) %>% unique()
       df %>%
-        ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(cluster_name, spec),
+        ggplot2::ggplot(ggplot2::aes(x = forcats::fct_reorder(topic_name, spec),
                                      y = spec,
-                                     fill = cluster_name)) +
+                                     fill = topic_name)) +
         ggplot2::geom_bar(stat = "identity",
                           position = ggplot2::position_dodge(width = 0.9), width = 0.8) +
-        ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$cluster_name)) +
+        ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$topic_name)) +
         ggplot2::labs(title = paste0("Topics specificity for ", input$city, " and the ", input$river),
                       subtitle = paste0("Number of segments: ", sum(df$n,na.rm=T),", number of pages: ", unique(df$npages)),
                       y = "specificity score",
@@ -346,8 +213,7 @@ mod_discourses_server <- function(id,conn, r_val){
     })
 
     output$word_map=leaflet::renderLeaflet({
-      searched_lines=r_get_searched_lines()
-      print(colnames(searched_lines))
+      searched_lines=r_result()
       result=all_cities %>%
         dplyr::filter(selection1_Discourses==TRUE) %>%
         dplyr::select(ID,Urban.Aggl,Latitude,Longitude,selection1_Discourses) %>%
