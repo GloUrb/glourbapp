@@ -160,7 +160,7 @@ mod_discourses_server <- function(id,conn, r_val){
     output$txt_page=DT::renderDT({
       result=r_get_txt_page() %>%
         dplyr::select(hl,position, link, trans_snippet,text_en,lemmatext) %>%
-        arrange(hl, position) %>%
+        dplyr::arrange(hl, position) %>%
         format_table()
     },escape=FALSE)
 
