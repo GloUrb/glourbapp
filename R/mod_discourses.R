@@ -164,13 +164,37 @@ mod_discourses_server <- function(id,conn, r_val){
         format_table()
     },escape=FALSE)
 
+    r_get_city_topics=reactive({
+     df=glourbi::get_city_tib("txt_topics",
+                              thisCityCode=glourbi::to_citycode(input$city),
+                              conn=conn) %>%
+       dplyr::filter(river_en==input$river)
+     if(input$query_language!="all"){
+       df=df %>%
+         dplyr::filter(query_language==input$query_language) %>%
+         dplyr::mutate(spec=spec2,
+                       npages=npages2,
+                       nsegments=nsegments2,
+                       n=n2)
+     }else{
+       df=df %>%
+         dplyr::mutate(spec=spec1,
+                       npages=npages1,
+                       nsegments=nsegments1,
+                       n=n1)
+     }
+     df=df %>%
+       dplyr::select(-dplyr::ends_with("1"),
+                     -dplyr::ends_with("2"),
+                     -query_language) %>%
+       dplyr::ungroup() %>%
+       unique()%>%
+       dplyr::mutate(prop=n/sum(n)*100)
+     df
+    })
+
     output$city_topics_n=renderPlot({
-      df=glourbi::get_city_tib("txt_topics",
-                               thisCityCode=glourbi::to_citycode(input$city),
-                               conn=conn) %>%
-        dplyr::filter(river_en==input$river) %>%
-        dplyr::mutate(prop=dplyr::case_when(is.na(prop)~0,
-                                            !is.na(prop)~prop))
+      df=r_get_city_topics()
       # plot results
       df_colors=df %>% dplyr::select(couleur,topic_name) %>% unique()
       df %>%
@@ -181,7 +205,10 @@ mod_discourses_server <- function(id,conn, r_val){
                           position = ggplot2::position_dodge(width = 0.9), width = 0.8) +
         ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$topic_name)) +
         ggplot2::labs(title = paste0("Topics distribution for ", input$city, " and the ", input$river),
-                      subtitle = paste0("Number of segments: ", sum(df$n,na.rm=TRUE),", number of pages: ", unique(df$npages)),
+                      subtitle = paste0("Number of segments: ",
+                                        unique(df$nsegments),
+                                        ", number of pages: ",
+                                        unique(df$npages)),
                       y = "%",
                       x = "") +
         ggplot2::coord_flip() +
@@ -191,9 +218,7 @@ mod_discourses_server <- function(id,conn, r_val){
 
 
     output$city_topics_spec=renderPlot({
-      df=glourbi::get_city_tib("txt_topics",
-                               thisCityCode=glourbi::to_citycode(input$city),
-                               conn=conn)
+      df=r_get_city_topics()
       # plot results
       df_colors=df %>% dplyr::select(couleur,topic_name) %>% unique()
       df %>%
@@ -204,7 +229,10 @@ mod_discourses_server <- function(id,conn, r_val){
                           position = ggplot2::position_dodge(width = 0.9), width = 0.8) +
         ggplot2::scale_fill_manual(values = setNames(df_colors$couleur, df_colors$topic_name)) +
         ggplot2::labs(title = paste0("Topics specificity for ", input$city, " and the ", input$river),
-                      subtitle = paste0("Number of segments: ", sum(df$n,na.rm=T),", number of pages: ", unique(df$npages)),
+                      subtitle = paste0("Number of segments: ",
+                                        unique(df$nsegments),
+                                        ", number of pages: ",
+                                        unique(df$npages)),
                       y = "specificity score",
                       x = "") +
         ggplot2::coord_flip() +
