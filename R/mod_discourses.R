@@ -31,7 +31,7 @@ mod_discourses_ui <- function(id){
                     ),
                     column(width=9,
                            leaflet::leafletOutput(ns("word_map"))),
-                    downloadButton(ns("download_btn"), "Download this data"),
+                    #downloadButton(ns("download_btn"), "Download this data"),
                     DT::dataTableOutput(ns("searched_lines"))
                   ) #fluidRow
           ),# tabPanel word search
@@ -63,7 +63,10 @@ mod_discourses_ui <- function(id){
                    )
           ),# by city tabPanel,
          tabPanel("method",
-                  tags$img(src="www/methode_appli.png", width = "1200px"))
+                  tags$img(src="www/methode_appli.png", width = "1200px")),
+         tabPanel("password",
+                  "If you want to access the scraped text of urls, please provide password (project members only):",
+                  passwordInput(ns("password"), "password:"))
         )#tabsetPanel
   )
 }
@@ -106,17 +109,31 @@ mod_discourses_server <- function(id,conn, r_val){
       query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
       DBI::dbGetQuery(conn = conn, query)
     })
-    observeEvent(input$search_btn, {
-      query_condition <- process_query(input$searched_word, input$searched_column)
-      query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
-      result=DBI::dbGetQuery(conn=conn,
-                             query)
-      r_result(result)
+    # observeEvent(input$search_btn, {
+    #   query_condition <- process_query(input$searched_word, input$searched_column)
+    #   query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
+    #   result=DBI::dbGetQuery(conn=conn,
+    #                          query)
+    #   r_result(result)
+    # })
+    r_password_ok=reactive({
+      if(!("password" %in% names(input))){result=FALSE}else{
+        result=FALSE
+        if(input$password==Sys.getenv("glourb_password_scrap")){result=TRUE}
+      }
+      print(result)
+      result
     })
     output$searched_lines=DT::renderDT({
-      searched_lines=r_result()
+      complete_searched_lines=r_result()
+      if(r_password_ok()){
+        searched_lines=complete_searched_lines %>%
+          dplyr::select(urban_aggl,country_en,position,link,trans_snippet,text_en,lemmatext)
+      }else{
+        searched_lines=complete_searched_lines%>%
+          dplyr::select(urban_aggl,country_en,position,link,trans_snippet)
+      }
       searched_lines %>%
-        dplyr::select(urban_aggl,country_en,position,link,trans_snippet,text_en,lemmatext) %>%
         format_table()
     })
     output$ui_river=renderUI({
@@ -158,8 +175,15 @@ mod_discourses_server <- function(id,conn, r_val){
         ggplot2::theme_bw(base_family = "CenturySch")
     })
     output$txt_page=DT::renderDT({
-      result=r_get_txt_page() %>%
-        dplyr::select(hl,position, link, trans_snippet,text_en,lemmatext) %>%
+      result_complete=r_get_txt_page()
+      if(r_password_ok()){
+        result=result_complete %>%
+          dplyr::select(hl,position, link, trans_snippet,text_en,lemmatext)
+      }else{
+        result=result_complete %>%
+          dplyr::select(hl,position, link, trans_snippet)
+      }
+      result=result %>%
         dplyr::arrange(hl, position) %>%
         format_table()
     },escape=FALSE)
@@ -264,15 +288,15 @@ mod_discourses_server <- function(id,conn, r_val){
                                   radius =~3*logn)
     })
 
-    output$download_btn <- downloadHandler(
-      filename = function() {
-        searched_word=stringr::str_replace_all(input$searched_word," OR ","_OR_")
-        glue::glue("corpus_{searched_word}.csv")
-      },
-      content = function(file) {
-        write.csv(r_get_searched_lines(), file)
-      }
-    )
+    # output$download_btn <- downloadHandler(
+    #   filename = function() {
+    #     searched_word=stringr::str_replace_all(input$searched_word," OR ","_OR_")
+    #     glue::glue("corpus_{searched_word}.csv")
+    #   },
+    #   content = function(file) {
+    #     write.csv(r_result(), file)
+    #   }
+    # )
 
     observeEvent(input$sub_menu_tab, {
       r_val$sub_menu_tab = input$sub_menu_tab
