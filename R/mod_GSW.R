@@ -130,7 +130,7 @@ mod_GSW_server <- function(id,conn){
                              group="water patches size") %>%
         leaflet::addTiles(group = "OSM map") %>%
         leaflet::addWMSTiles(
-          baseUrl = Sys.getenv("GEOSERVER"),
+          baseUrl = Sys.getenv("GEOSERVER_GLOURB"),
           layers = "gsw_change",  # Le nom de la couche
           options = leaflet::WMSTileOptions(
             version = "1.1.0",

@@ -6,7 +6,7 @@
 \usage{
 format_table(
   tib,
-  large = c("text_en", "text", "context"),
+  large = c("text_en", "text", "context", "lemmatext"),
   medium = c("snippet", "trans_snippet")
 )
 }

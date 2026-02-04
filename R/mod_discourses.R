@@ -109,19 +109,18 @@ mod_discourses_server <- function(id,conn, r_val){
       query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
       DBI::dbGetQuery(conn = conn, query)
     })
-    # observeEvent(input$search_btn, {
-    #   query_condition <- process_query(input$searched_word, input$searched_column)
-    #   query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
-    #   result=DBI::dbGetQuery(conn=conn,
-    #                          query)
-    #   r_result(result)
-    # })
+    observeEvent(input$search_btn, {
+      query_condition <- process_query(input$searched_word, input$searched_column)
+      query <- glue::glue("SELECT * FROM txt_page WHERE {query_condition};")
+      result=DBI::dbGetQuery(conn=conn,
+                             query)
+      r_result(result)
+    })
     r_password_ok=reactive({
       if(!("password" %in% names(input))){result=FALSE}else{
         result=FALSE
         if(input$password==Sys.getenv("glourb_password_scrap")){result=TRUE}
       }
-      print(result)
       result
     })
     output$searched_lines=DT::renderDT({
@@ -266,7 +265,7 @@ mod_discourses_server <- function(id,conn, r_val){
 
     output$word_map=leaflet::renderLeaflet({
       searched_lines=r_result()
-      result=all_cities %>%
+      result=glourbi::all_cities %>%
         dplyr::filter(selection1_Discourses==TRUE) %>%
         dplyr::select(ID,Urban.Aggl,Latitude,Longitude,selection1_Discourses) %>%
         dplyr::left_join(searched_lines, by=c("ID"="citycode")) %>%
