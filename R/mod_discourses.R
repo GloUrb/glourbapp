@@ -279,7 +279,9 @@ mod_discourses_server <- function(id,conn, r_val){
                                             TRUE~"coral")) %>%
         dplyr::mutate(logn=3*log10(nocc))
       leaflet::leaflet() %>%
-        leaflet::addProviderTiles("CartoDB.Positron") %>%
+        leaflet::addTiles(paste0("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=",
+                                 Sys.getenv("CartoDB_API_key")),
+                          attribution = '© <a href="https://carto.com/attributions">CartoDB</a>') |>
         leaflet::addCircleMarkers(data = result,
                                   label = paste0(result$Urban.Aggl,", ", result$nocc),
                                   color = ~void,
